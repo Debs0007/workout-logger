@@ -3,17 +3,14 @@ import pandas as pd
 import datetime
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
-import json
 
 # ==============================
 # Google Sheets Setup
 # ==============================
-SHEET_NAME = "Workout Logs"  # must match the name of your sheet
-CREDENTIALS_FILE = "credentials.json"
+SHEET_NAME = "Workout Logs"  # must match your sheet name
 
 # Define scope
-
-scope = ["https://spreadsheets.google.com/feeds","https://www.googleapis.com/auth/drive"]
+scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 
 # Load credentials from Streamlit secrets
 creds_dict = st.secrets["gcp_service_account"]
@@ -78,29 +75,29 @@ movement_library = {
 st.title("🏋️ Workout Log Entry App")
 
 # Session info
-date = st.date_input("Select workout date", datetime.date.today())
-time = st.time_input("Workout start time", datetime.time(16, 0))
-session_id = st.number_input("Session ID", min_value=1, value=1, step=1)
+date = st.date_input("📅 Select workout date", datetime.date.today())
+time = st.time_input("⏰ Workout start time", datetime.time(16, 0))
+session_id = st.number_input("🆔 Session ID", min_value=1, value=1, step=1)
 
 # Exercise entry
-body_part = st.selectbox("Body Part", list(movement_library.keys()))
+body_part = st.selectbox("💪 Body Part", list(movement_library.keys()))
 
 # Create list of "id - name" options
 movement_options = [f"{mid} - {name}" for mid, name in movement_library[body_part].items()]
-movement_choice = st.selectbox("Movement", movement_options)
+movement_choice = st.selectbox("🏃 Movement", movement_options)
 
 # Split back into ID and Name
 movement_id = int(movement_choice.split(" - ")[0])
 movement_name = movement_choice.split(" - ")[1]
 
-set_number = st.number_input("Set Number", min_value=1, value=1)
-weight = st.number_input("Weight", min_value=0.0, value=0.0, step=0.5)
-weight_unit = st.selectbox("Weight Unit", ["kg", "lbs"])
-reps = st.number_input("Reps", min_value=1, value=10)
-rest_seconds = st.number_input("Rest (seconds)", min_value=0, value=120)
-is_pr = st.checkbox("Personal Record (PR)")
-workout_minutes = st.number_input("Workout Minutes", min_value=0, value=10)
-notes = st.text_area("Notes")
+set_number = st.number_input("🔢 Set Number", min_value=1, value=1)
+weight = st.number_input("🏋️ Weight", min_value=0.0, value=0.0, step=0.5)
+weight_unit = st.selectbox("⚖️ Weight Unit", ["kg", "lbs"])
+reps = st.number_input("🔄 Reps", min_value=1, value=10)
+rest_seconds = st.number_input("⏳ Rest (seconds)", min_value=0, value=120)
+is_pr = st.checkbox("🔥 Personal Record (PR)")
+workout_minutes = st.number_input("⏱️ Workout Minutes", min_value=0, value=10)
+notes = st.text_area("📝 Notes")
 
 # Store session entries in state
 if "workout_data" not in st.session_state:
@@ -108,7 +105,7 @@ if "workout_data" not in st.session_state:
 
 if st.button("➕ Add Exercise"):
     new_entry = {
-        "date": datetime.datetime.combine(date, time),
+        "date": datetime.datetime.combine(date, time).strftime("%Y-%m-%d %H:%M:%S"),
         "session_id": session_id,
         "body_part": body_part,
         "movement_id": movement_id,
@@ -123,17 +120,11 @@ if st.button("➕ Add Exercise"):
         "notes": notes
     }
     st.session_state.workout_data.append(new_entry)
-    st.success(f"Added {movement_name} ✅")
 
-# Show table
+    # ✅ Auto-save immediately
+    sheet.append_row(list(new_entry.values()))
+    st.success(f"✅ {movement_name} saved instantly to Google Sheets!")
+
+# Show live session data
 df = pd.DataFrame(st.session_state.workout_data)
 st.dataframe(df)
-
-# Save to Google Sheets
-if st.button("💾 Save Session to Google Sheets"):
-    if not df.empty:
-        for _, row in df.iterrows():
-            sheet.append_row(list(row.values))
-        st.success(f"✅ Session saved to Google Sheets: {SHEET_NAME}")
-    else:
-        st.warning("⚠️ No data to save!")
